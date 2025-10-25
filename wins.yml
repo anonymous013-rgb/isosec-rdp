@@ -1,0 +1,61 @@
+name: My RDP Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Enable RDP and Configure Firewall
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1 -Force
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          echo "✅ RDP and Firewall Enabled."
+
+      - name: Create Custom User
+        run: |
+          $username = "coolbhai"
+          $password = "Secure@456"
+          $securePass = ConvertTo-SecureString $password -AsPlainText -Force
+          
+          if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
+            Remove-LocalUser -Name $username
+          }
+          
+          New-LocalUser $username -Password $securePass -FullName "Cool Bhai RDP"
+          Add-LocalGroupMember -Group "Administrators" -Member $username
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username
+          echo "✅ User '$username' created."
+
+      - name: Install Latest Tailscale
+        run: |
+          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe" -OutFile "tailscale-setup.exe"
+          Start-Process -FilePath ".\tailscale-setup.exe" -ArgumentList "/S" -Wait
+          echo "✅ Latest Tailscale installed."
+
+      - name: Connect to Tailscale
+        id: ts
+        run: |
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname="bhai-rdp"
+          $tsIP = & "C:\Program Files\Tailscale\tailscale.exe" ip -4
+          echo "ts_ip=$tsIP" >> $env:GITHUB_OUTPUT
+
+      - name: Keep Runner Alive & Display Credentials
+        run: |
+          Write-Host "✅ RDP session is active and secured via Tailscale."
+          Write-Host ""
+          Write-Host "========== RDP DETAILS =========="
+          Write-Host "   IP Address: ${{ steps.ts.outputs.ts_ip }}"
+          Write-Host "   Username:   coolbhai"
+          Write-Host "   Password:   Secure@456"
+          Write-Host "================================="
+          Write-Host ""
+          Write-Host "This connection will remain active for up to 6 hours."
+          
+          while ($true) {
+            Start-Sleep -Seconds 60
+          }
