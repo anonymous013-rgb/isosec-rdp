@@ -40,7 +40,7 @@ jobs:
       - name: Connect to Tailscale
         id: ts
         run: |
-          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname="sg-rdp-${{ github.run_id }}" --tags=tag:ci
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname="sg-rdp-${{ github.run_id }}" --advertise-tags=tag:ci
           $tsIP = & "C:\Program Files\Tailscale\tailscale.exe" ip -4
           echo "ts_ip=$tsIP" >> $env:GITHUB_OUTPUT
 
